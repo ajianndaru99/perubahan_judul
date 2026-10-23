@@ -103,15 +103,79 @@ class ApiController extends Controller
     /* ===== publik ===== */
     public function a_publik()
     {
-        $rowPengumuman = DB::table('pengaturan')->where('kunci', 'pengumuman')->value('nilai');
-        $pengumuman = $rowPengumuman ? json_decode($rowPengumuman, true) : null;
+        $pengumuman = null;
+        $alur = null;
+        $identitas = null;
+
+        try {
+            $rowPengumuman = DB::table('pengaturan')->where('kunci', 'pengumuman')->value('nilai');
+            $pengumuman = $rowPengumuman ? json_decode($rowPengumuman, true) : null;
+
+            $rowAlur = DB::table('pengaturan')->where('kunci', 'alur_verifikasi')->value('nilai');
+            $alur = $rowAlur ? json_decode($rowAlur, true) : null;
+
+            $rowIdentitas = DB::table('pengaturan')->where('kunci', 'identitas_kampus')->value('nilai');
+            $identitas = $rowIdentitas ? json_decode($rowIdentitas, true) : null;
+        } catch (\Throwable $e) {
+            // Fallback graceful jika tabel atau database belum terhubung
+        }
+
+        if (!$alur || empty($alur['steps'])) {
+            $alur = [
+                'judul' => 'Alur Verifikasi Perubahan Judul Skripsi',
+                'subjudul' => 'Tahapan pengajuan dan verifikasi elektronik perubahan judul skripsi',
+                'steps' => [
+                    [
+                        'nomor' => 'Langkah 1',
+                        'judul' => 'Konsultasi Dospem',
+                        'deskripsi' => 'Mahasiswa wajib berkonsultasi & menyepakati judul baru bersama Pembimbing I & II terlebih dahulu.'
+                    ],
+                    [
+                        'nomor' => 'Langkah 2',
+                        'judul' => 'Pengisian Formulir',
+                        'deskripsi' => 'Mahasiswa melengkapi data diri, judul lama, alasan perubahan di lapangan, serta judul baru.'
+                    ],
+                    [
+                        'nomor' => 'Langkah 3',
+                        'judul' => 'Review Dosen & Kaprodi',
+                        'deskripsi' => 'Dosen Pembimbing I, II dan Kaprodi meninjau pengajuan secara elektronik di sistem (menyetujui / meminta revisi).'
+                    ],
+                    [
+                        'nomor' => 'Langkah 4',
+                        'judul' => 'Dokumen Sah & Cetak',
+                        'deskripsi' => 'Setelah disahkan Kaprodi, dokumen resmi ber-QR Code dapat diunduh dan dicetak secara mandiri.'
+                    ]
+                ]
+            ];
+        }
+
+        if (!$identitas) {
+            $identitas = [
+                'nama_institusi' => 'INSTITUT PERTANIAN STIPER',
+                'nama_fakultas' => 'FAKULTAS PERTANIAN',
+                'alamat' => 'Jl. Nangka II, Maguwoharjo, Kec. Depok, Kabupaten Sleman, D.I. Yogyakarta 55282',
+                'kontak' => 'Telp. (0274) 885803 · Email: pertanian@instiperjogja.ac.id',
+                'logo_url' => '/images/logo-kampus.png'
+            ];
+        }
+
+        $prodi = [];
+        $dosen = [];
+        try {
+            $prodi = array_map(fn($x) => $x + ['id' => $x['nama']], $this->rows('prodi', DB::table('prodi')->orderBy('nama')));
+            $dosen = array_map(fn($u) => ['username' => $u['username'], 'nama' => $u['nama'], 'prodi' => $u['prodi'], 'role' => $u['role']],
+                $this->rows('akun', DB::table('akun')->where('role', '!=', 'admin')->orderBy('prodi')->orderBy('nama')));
+        } catch (\Throwable $e) {
+            // Silently fallback if DB is offline or not yet migrated
+        }
 
         return [
             'url' => url('/'),
-            'prodi' => array_map(fn($x) => $x + ['id' => $x['nama']], $this->rows('prodi', DB::table('prodi')->orderBy('nama'))),
-            'dosen' => array_map(fn($u) => ['username' => $u['username'], 'nama' => $u['nama'], 'prodi' => $u['prodi'], 'role' => $u['role']],
-                $this->rows('akun', DB::table('akun')->where('role', '!=', 'admin')->orderBy('prodi')->orderBy('nama'))),
+            'prodi' => $prodi,
+            'dosen' => $dosen,
             'pengumuman' => $pengumuman,
+            'alur_verifikasi' => $alur,
+            'identitas_kampus' => $identitas,
         ];
     }
 
@@ -578,6 +642,88 @@ class ApiController extends Controller
         ], JSON_UNESCAPED_UNICODE);
 
         DB::table('pengaturan')->updateOrInsert(['kunci' => 'pengumuman'], [
+            'nilai' => $data,
+            'updated_at' => now(),
+        ]);
+        return true;
+    }
+
+    public function a_simpanAlurVerifikasi($t, $p)
+    {
+        $this->admin($t);
+        $p = (array) $p;
+        $judul = trim($this->str($p['judul'] ?? 'Alur Verifikasi Perubahan Judul Skripsi'));
+        $subjudul = trim($this->str($p['subjudul'] ?? ''));
+        $rawSteps = (array) ($p['steps'] ?? []);
+        $steps = [];
+
+        foreach ($rawSteps as $idx => $s) {
+            $s = (array) $s;
+            $nomor = trim($this->str($s['nomor'] ?? ('Langkah ' . ($idx + 1))));
+            $j = trim($this->str($s['judul'] ?? ''));
+            $d = trim($this->str($s['deskripsi'] ?? ''));
+            if ($j === '' && $d === '') continue;
+            $steps[] = [
+                'nomor' => $nomor !== '' ? $nomor : ('Langkah ' . ($idx + 1)),
+                'judul' => $j,
+                'deskripsi' => $d,
+            ];
+        }
+
+        if (empty($steps)) {
+            $this->err('Alur verifikasi minimal harus memiliki 1 langkah.');
+        }
+
+        $data = json_encode([
+            'judul' => $judul !== '' ? $judul : 'Alur Verifikasi Perubahan Judul Skripsi',
+            'subjudul' => $subjudul,
+            'steps' => $steps,
+            'updated_at' => now()->toDateTimeString(),
+        ], JSON_UNESCAPED_UNICODE);
+
+        DB::table('pengaturan')->updateOrInsert(['kunci' => 'alur_verifikasi'], [
+            'nilai' => $data,
+            'updated_at' => now(),
+        ]);
+        return true;
+    }
+
+    public function a_simpanIdentitasKampus($t, $p)
+    {
+        $this->admin($t);
+        $p = (array) $p;
+        $namaInstitusi = trim($this->str($p['nama_institusi'] ?? 'INSTITUT PERTANIAN STIPER'));
+        $namaFakultas = trim($this->str($p['nama_fakultas'] ?? 'FAKULTAS PERTANIAN'));
+        $alamat = trim($this->str($p['alamat'] ?? ''));
+        $kontak = trim($this->str($p['kontak'] ?? ''));
+        $logoUrl = trim($this->str($p['logo_url'] ?? '/images/logo-kampus.png'));
+
+        if (!empty($p['logo_base64']) && preg_match('/^data:image\/(png|jpeg|jpg|webp);base64,/', (string) $p['logo_base64'])) {
+            $b64 = (string) $p['logo_base64'];
+            $parts = explode(',', $b64, 2);
+            $ext = str_contains($parts[0], 'png') ? 'png' : (str_contains($parts[0], 'webp') ? 'webp' : 'jpg');
+            $imgData = base64_decode($parts[1]);
+            if ($imgData !== false && strlen($imgData) <= 2 * 1024 * 1024) {
+                $filename = 'logo-kampus-custom.' . $ext;
+                $target = public_path('images/' . $filename);
+                if (!is_dir(public_path('images'))) {
+                    mkdir(public_path('images'), 0755, true);
+                }
+                file_put_contents($target, $imgData);
+                $logoUrl = '/images/' . $filename . '?t=' . time();
+            }
+        }
+
+        $data = json_encode([
+            'nama_institusi' => $namaInstitusi,
+            'nama_fakultas' => $namaFakultas,
+            'alamat' => $alamat,
+            'kontak' => $kontak,
+            'logo_url' => $logoUrl,
+            'updated_at' => now()->toDateTimeString(),
+        ], JSON_UNESCAPED_UNICODE);
+
+        DB::table('pengaturan')->updateOrInsert(['kunci' => 'identitas_kampus'], [
             'nilai' => $data,
             'updated_at' => now(),
         ]);

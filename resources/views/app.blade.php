@@ -11,6 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link rel="icon" type="image/png" href="/images/logo-kampus.png">
 @verbatim
 <style>
 :root {
@@ -63,6 +64,14 @@ header {
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 .brand { display: flex; align-items: center; gap: 12px; }
+.brand-logo-wrap {
+  width: 44px; height: 44px; border-radius: 10px; background: #ffffff;
+  display: flex; align-items: center; justify-content: center; padding: 3px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2); flex-shrink: 0;
+}
+.brand-logo {
+  max-width: 100%; max-height: 100%; object-fit: contain; display: block;
+}
 .brand-icon {
   width: 42px; height: 42px; border-radius: 10px; background: rgba(255,255,255,0.15);
   display: flex; align-items: center; justify-content: center; font-size: 22px;
@@ -252,6 +261,47 @@ tr:hover td { background: #fbfcfe; }
 .step-title { font-size: 13.5px; font-weight: 700; margin: 0 0 4px; color: #0f172a; }
 .step-desc { font-size: 12px; color: #64748b; margin: 0; line-height: 1.45; }
 
+/* Step Editor inside Modal */
+.step-edit-item {
+  background: #f8fafc; border: 1px solid var(--bd); border-radius: 8px; padding: 12px; margin-bottom: 10px;
+  position: relative; transition: all .15s ease;
+}
+.step-edit-item:hover { border-color: #cbd5e1; }
+.step-edit-head {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px;
+}
+.step-edit-tools {
+  display: flex; gap: 4px;
+}
+.step-edit-tools button {
+  padding: 3px 8px; font-size: 12px; border-radius: 6px;
+}
+
+/* Kop Surat Resmi A4 */
+.kop-surat {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 6px; padding-bottom: 4px;
+}
+.kop-logo {
+  width: 65px; height: 65px; object-fit: contain; flex-shrink: 0;
+}
+.kop-text {
+  flex: 1; text-align: center; color: #000; line-height: 1.25;
+}
+.kop-inst {
+  font-family: Arial, Helvetica, sans-serif; font-size: 13pt; font-weight: 800;
+  letter-spacing: 0.5px; color: #165b2a;
+}
+.kop-fak {
+  font-family: Arial, Helvetica, sans-serif; font-size: 15pt; font-weight: 900;
+  letter-spacing: 1px; color: #0f3d1b; margin: 1px 0;
+}
+.kop-detail {
+  font-family: Arial, Helvetica, sans-serif; font-size: 8pt; color: #333;
+}
+.kop-line {
+  border-top: 2.5px solid #165b2a; border-bottom: 1px solid #165b2a; height: 3px; margin-bottom: 12px;
+}
+
 /* Stepper Tracker for Mahasiswa */
 .track-step {
   display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px;
@@ -369,10 +419,12 @@ tr:hover td { background: #fbfcfe; }
 <body>
 <header>
   <div class="brand">
-    <div class="brand-icon">🌱</div>
+    <div class="brand-logo-wrap">
+      <img src="/images/logo-kampus.png" alt="Logo INSTIPER" class="brand-logo" id="headerLogoImg">
+    </div>
     <div class="brand-text">
-      <h1>Fakultas Pertanian</h1>
-      <p>Sistem Informasi Pengajuan Perubahan Judul Skripsi</p>
+      <h1 id="headerNamaFakultas">Fakultas Pertanian</h1>
+      <p id="headerNamaSistem">Sistem Informasi Pengajuan Perubahan Judul Skripsi · INSTIPER</p>
     </div>
   </div>
   <div id="who"></div>
@@ -381,7 +433,7 @@ tr:hover td { background: #fbfcfe; }
 <main id="app">Memuat…</main>
 <footer id="footer">
   <div class="footer-inner">
-    <div>© Fakultas Pertanian · Sistem Informasi Pengajuan Perubahan Judul Skripsi</div>
+    <div id="footerText">© Fakultas Pertanian · INSTITUT PERTANIAN STIPER · Sistem Informasi Pengajuan Perubahan Judul Skripsi</div>
     <div id="footerStaffLink">
       <a href="#login" onclick="go('login')">🔒 Masuk Staf / Dosen</a>
     </div>
@@ -476,10 +528,29 @@ function showAlert(title, message) {
   });
 }
 
+function applyIdentitas() {
+  const id = (PUB && PUB.identitas_kampus) || {};
+  const logo = id.logo_url || '/images/logo-kampus.png';
+  const fak = id.nama_fakultas || 'Fakultas Pertanian';
+  const inst = id.nama_institusi || 'INSTITUT PERTANIAN STIPER';
+
+  const logoEl = $('#headerLogoImg');
+  if (logoEl) logoEl.src = logo;
+  const fakEl = $('#headerNamaFakultas');
+  if (fakEl) fakEl.textContent = fak;
+  const sysEl = $('#headerNamaSistem');
+  if (sysEl) sysEl.textContent = 'Sistem Informasi Pengajuan Perubahan Judul Skripsi · ' + inst;
+  const footEl = $('#footerText');
+  if (footEl) footEl.textContent = `© ${fak} · ${inst} · Sistem Informasi Pengajuan Perubahan Judul Skripsi`;
+}
+
 /* ===== Init & Navigation ===== */
 async function init() {
   if (VERIFY) return vVerif();
-  try { PUB = await call('publik'); } catch (e) {
+  try {
+    PUB = await call('publik');
+    applyIdentitas();
+  } catch (e) {
     $('#app').innerHTML = '<div class="card err">Gagal memuat sistem: ' + esc(errm(e)) + '</div>';
     return;
   }
@@ -560,6 +631,7 @@ async function go(k) {
   if (k === 'out' || !PUB || !PUB.prodi || PUB.prodi.length === 0) {
     try {
       PUB = await call('publik');
+      applyIdentitas();
       render();
     } catch (e) {}
   }
@@ -576,6 +648,18 @@ function vBeranda() {
   };
 
   const isAdmin = S && S.role === 'admin';
+  const alur = PUB.alur_verifikasi || {
+    judul: 'Alur Verifikasi Perubahan Judul Skripsi',
+    subjudul: 'Tahapan pengajuan dan verifikasi elektronik perubahan judul skripsi',
+    steps: [
+      { nomor: 'Langkah 1', judul: 'Konsultasi Dospem', deskripsi: 'Mahasiswa wajib berkonsultasi & menyepakati judul baru bersama Pembimbing I & II terlebih dahulu.' },
+      { nomor: 'Langkah 2', judul: 'Pengisian Formulir', deskripsi: 'Mahasiswa melengkapi data diri, judul lama, alasan perubahan di lapangan, serta judul baru.' },
+      { nomor: 'Langkah 3', judul: 'Review Dosen & Kaprodi', deskripsi: 'Dosen Pembimbing I, II dan Kaprodi meninjau pengajuan secara elektronik di sistem (menyetujui / meminta revisi).' },
+      { nomor: 'Langkah 4', judul: 'Dokumen Sah & Cetak', deskripsi: 'Setelah disahkan Kaprodi, dokumen resmi ber-QR Code dapat diunduh dan dicetak secara mandiri.' }
+    ]
+  };
+  const steps = (alur.steps && alur.steps.length) ? alur.steps : [];
+
   const formattedIsi = esc(p.isi || '')
     .replace(/^### (.*$)/gim, '<h4 style="margin:12px 0 6px;color:#14532d;font-size:15px;font-weight:700">$1</h4>')
     .replace(/^## (.*$)/gim, '<h3 style="margin:14px 0 6px;color:#14532d;font-size:16px;font-weight:700">$1</h3>')
@@ -593,7 +677,11 @@ function vBeranda() {
           <h2 class="hero-title">${esc(p.judul)}</h2>
           <p class="hero-subtitle">${esc(p.subjudul || '')}</p>
         </div>
-        ${isAdmin ? `<button class="s" onclick="editPengumuman()"><span style="font-size:15px">✏️</span> Edit Pengumuman (Admin)</button>` : ''}
+        ${isAdmin ? `
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="s" onclick="editPengumuman()"><span style="font-size:15px">✏️</span> Edit Pengumuman</button>
+          <button class="s" onclick="editIdentitasKampus()"><span style="font-size:15px">🏛️</span> Logo & Kampus</button>
+        </div>` : ''}
       </div>
 
       <div class="hero-body" style="margin-bottom:0">
@@ -602,28 +690,21 @@ function vBeranda() {
     </div>
 
     <div class="card">
-      <h3>Alur Verifikasi Perubahan Judul Skripsi</h3>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+        <div>
+          <h3 style="margin:0">${esc(alur.judul || 'Alur Verifikasi Perubahan Judul Skripsi')}</h3>
+          ${alur.subjudul ? `<p style="margin:4px 0 0;font-size:13px;color:var(--tx-muted)">${esc(alur.subjudul)}</p>` : ''}
+        </div>
+        ${isAdmin ? `<button class="s" onclick="editAlurVerifikasi()"><span style="font-size:15px">✏️</span> Edit Alur Verifikasi (Admin)</button>` : ''}
+      </div>
       <div class="steps-grid">
-        <div class="step-card">
-          <span class="step-num">Langkah 1</span>
-          <h4 class="step-title">Konsultasi Dospem</h4>
-          <p class="step-desc">Mahasiswa wajib berkonsultasi & menyepakati judul baru bersama Pembimbing I & II terlebih dahulu.</p>
-        </div>
-        <div class="step-card">
-          <span class="step-num">Langkah 2</span>
-          <h4 class="step-title">Pengisian Formulir</h4>
-          <p class="step-desc">Mahasiswa melengkapi data diri, judul lama, alasan perubahan di lapangan, serta judul baru.</p>
-        </div>
-        <div class="step-card">
-          <span class="step-num">Langkah 3</span>
-          <h4 class="step-title">Review Dosen & Kaprodi</h4>
-          <p class="step-desc">Dosen Pembimbing I, II dan Kaprodi meninjau pengajuan secara elektronik di sistem (menyetujui / meminta revisi).</p>
-        </div>
-        <div class="step-card">
-          <span class="step-num">Langkah 4</span>
-          <h4 class="step-title">Dokumen Sah & Cetak</h4>
-          <p class="step-desc">Setelah disahkan Kaprodi, dokumen resmi ber-QR Code dapat diunduh dan dicetak secara mandiri.</p>
-        </div>
+        ${steps.map((s, i) => `
+          <div class="step-card">
+            <span class="step-num">${esc(s.nomor || ('Langkah ' + (i + 1)))}</span>
+            <h4 class="step-title">${esc(s.judul || '')}</h4>
+            <p class="step-desc">${esc(s.deskripsi || '')}</p>
+          </div>
+        `).join('')}
       </div>
     </div>
 
@@ -666,6 +747,231 @@ function editPengumuman() {
       vBeranda();
     }
   });
+}
+
+function editAlurVerifikasi() {
+  const alur = JSON.parse(JSON.stringify(PUB.alur_verifikasi || {
+    judul: 'Alur Verifikasi Perubahan Judul Skripsi',
+    subjudul: 'Tahapan pengajuan dan verifikasi elektronik perubahan judul skripsi',
+    steps: [
+      { nomor: 'Langkah 1', judul: 'Konsultasi Dospem', deskripsi: 'Mahasiswa wajib berkonsultasi & menyepakati judul baru bersama Pembimbing I & II terlebih dahulu.' },
+      { nomor: 'Langkah 2', judul: 'Pengisian Formulir', deskripsi: 'Mahasiswa melengkapi data diri, judul lama, alasan perubahan di lapangan, serta judul baru.' },
+      { nomor: 'Langkah 3', judul: 'Review Dosen & Kaprodi', deskripsi: 'Dosen Pembimbing I, II dan Kaprodi meninjau pengajuan secara elektronik di sistem (menyetujui / meminta revisi).' },
+      { nomor: 'Langkah 4', judul: 'Dokumen Sah & Cetak', deskripsi: 'Setelah disahkan Kaprodi, dokumen resmi ber-QR Code dapat diunduh dan dicetak secara mandiri.' }
+    ]
+  }));
+
+  let currentSteps = (alur.steps && alur.steps.length) ? alur.steps : [];
+
+  function renderStepList() {
+    const container = $('#stepListContainer');
+    if (!container) return;
+    const countEl = $('#stepCount');
+    if (countEl) countEl.textContent = currentSteps.length;
+    if (currentSteps.length === 0) {
+      container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--tx-muted);font-size:13px;background:#f8fafc;border-radius:8px;border:1px dashed var(--bd)">Belum ada langkah alur. Klik tombol <b>+ Tambah Langkah</b> di atas.</div>';
+      return;
+    }
+    container.innerHTML = currentSteps.map((s, idx) => `
+      <div class="step-edit-item" data-idx="${idx}">
+        <div class="step-edit-head">
+          <span style="font-weight:700;font-size:13px;color:var(--ac)">Urutan #${idx + 1}</span>
+          <div class="step-edit-tools">
+            <button type="button" class="s" onclick="moveStepItem(${idx}, -1)" ${idx === 0 ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''} title="Pindah ke atas">⬆️</button>
+            <button type="button" class="s" onclick="moveStepItem(${idx}, 1)" ${idx === currentSteps.length - 1 ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''} title="Pindah ke bawah">⬇️</button>
+            <button type="button" class="d-outline" onclick="removeStepItem(${idx})" title="Hapus langkah">🗑️ Hapus</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;margin-bottom:6px">
+          <div>
+            <label style="font-size:11px;margin-bottom:2px">Label Langkah</label>
+            <input type="text" value="${esc(s.nomor || ('Langkah ' + (idx + 1)))}" placeholder="Langkah ${idx + 1}" oninput="updateStepData(${idx}, 'nomor', this.value)">
+          </div>
+          <div>
+            <label style="font-size:11px;margin-bottom:2px">Judul Langkah</label>
+            <input type="text" class="inp-step-judul" value="${esc(s.judul || '')}" placeholder="Contoh: Konsultasi Dospem" oninput="updateStepData(${idx}, 'judul', this.value)">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:11px;margin-bottom:2px">Uraian / Penjelasan Singkat</label>
+          <textarea rows="2" style="font-size:13px;resize:vertical" placeholder="Uraian langkah alur..." oninput="updateStepData(${idx}, 'deskripsi', this.value)">${esc(s.deskripsi || '')}</textarea>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  window.updateStepData = (idx, field, val) => {
+    if (currentSteps[idx]) currentSteps[idx][field] = val;
+  };
+
+  window.moveStepItem = (idx, dir) => {
+    const targetIdx = idx + dir;
+    if (targetIdx < 0 || targetIdx >= currentSteps.length) return;
+    const temp = currentSteps[idx];
+    currentSteps[idx] = currentSteps[targetIdx];
+    currentSteps[targetIdx] = temp;
+    renderStepList();
+  };
+
+  window.removeStepItem = (idx) => {
+    if (currentSteps.length <= 1) {
+      alert('Alur verifikasi minimal harus memiliki 1 langkah.');
+      return;
+    }
+    currentSteps.splice(idx, 1);
+    renderStepList();
+  };
+
+  window.addNewStep = () => {
+    currentSteps.push({
+      nomor: 'Langkah ' + (currentSteps.length + 1),
+      judul: '',
+      deskripsi: ''
+    });
+    renderStepList();
+    const container = $('#stepListContainer');
+    if (container && container.lastElementChild) {
+      container.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      const inp = container.lastElementChild.querySelector('.inp-step-judul');
+      if (inp) inp.focus();
+    }
+  };
+
+  window.resetDefaultSteps = () => {
+    if (!confirm('Kembalikan susunan alur ke 4 langkah standar bawaan sistem?')) return;
+    currentSteps = [
+      { nomor: 'Langkah 1', judul: 'Konsultasi Dospem', deskripsi: 'Mahasiswa wajib berkonsultasi & menyepakati judul baru bersama Pembimbing I & II terlebih dahulu.' },
+      { nomor: 'Langkah 2', judul: 'Pengisian Formulir', deskripsi: 'Mahasiswa melengkapi data diri, judul lama, alasan perubahan di lapangan, serta judul baru.' },
+      { nomor: 'Langkah 3', judul: 'Review Dosen & Kaprodi', deskripsi: 'Dosen Pembimbing I, II dan Kaprodi meninjau pengajuan secara elektronik di sistem (menyetujui / meminta revisi).' },
+      { nomor: 'Langkah 4', judul: 'Dokumen Sah & Cetak', deskripsi: 'Setelah disahkan Kaprodi, dokumen resmi ber-QR Code dapat diunduh dan dicetak secara mandiri.' }
+    ];
+    $('#eaJudul').value = 'Alur Verifikasi Perubahan Judul Skripsi';
+    $('#eaSub').value = 'Tahapan pengajuan dan verifikasi elektronik perubahan judul skripsi';
+    renderStepList();
+  };
+
+  openModal({
+    title: 'Edit Alur Verifikasi (Admin)',
+    contentHtml: `
+      <div id="modalErr" style="display:none;color:var(--dg);font-weight:600;font-size:13px;margin-bottom:8px"></div>
+      <div><label>Judul Bagian Alur</label><input id="eaJudul" value="${esc(alur.judul || 'Alur Verifikasi Perubahan Judul Skripsi')}" placeholder="Judul bagian alur..."></div>
+      <div><label>Keterangan Tambahan / Subjudul (Opsional)</label><input id="eaSub" value="${esc(alur.subjudul || '')}" placeholder="Keterangan singkat alur..."></div>
+      
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px">
+        <label style="margin:0;font-weight:700">Daftar Langkah Alur (<span id="stepCount">${currentSteps.length}</span>)</label>
+        <div style="display:flex;gap:6px">
+          <button type="button" class="s" onclick="resetDefaultSteps()" style="font-size:12px;padding:5px 10px">🔄 Reset Standar</button>
+          <button type="button" onclick="addNewStep()" style="font-size:12px;padding:5px 10px">+ Tambah Langkah</button>
+        </div>
+      </div>
+      <div id="stepListContainer" style="max-height:48vh;overflow-y:auto;padding-right:4px"></div>
+    `,
+    okText: 'Simpan Alur Verifikasi',
+    okClass: '',
+    onOk: async () => {
+      const judul = $('#eaJudul').value.trim();
+      const subjudul = $('#eaSub').value.trim();
+      const validSteps = currentSteps.filter(s => (s.judul && s.judul.trim()) || (s.deskripsi && s.deskripsi.trim()));
+      
+      if (!judul) {
+        const errEl = $('#modalErr');
+        if (errEl) { errEl.textContent = 'Judul bagian alur wajib diisi.'; errEl.style.display = 'block'; }
+        return false;
+      }
+      if (validSteps.length === 0) {
+        const errEl = $('#modalErr');
+        if (errEl) { errEl.textContent = 'Minimal harus memiliki 1 langkah dengan judul.'; errEl.style.display = 'block'; }
+        return false;
+      }
+
+      const payload = {
+        judul,
+        subjudul,
+        steps: validSteps
+      };
+
+      await run(call('simpanAlurVerifikasi', tk(), payload), 'Alur verifikasi berhasil diperbarui.');
+      PUB = await call('publik');
+      vBeranda();
+    }
+  });
+
+  renderStepList();
+}
+
+function editIdentitasKampus() {
+  const id = PUB.identitas_kampus || {
+    nama_institusi: 'INSTITUT PERTANIAN STIPER',
+    nama_fakultas: 'FAKULTAS PERTANIAN',
+    alamat: 'Jl. Nangka II, Maguwoharjo, Kec. Depok, Kabupaten Sleman, D.I. Yogyakarta 55282',
+    kontak: 'Telp. (0274) 885803 · Email: pertanian@instiperjogja.ac.id',
+    logo_url: '/images/logo-kampus.png'
+  };
+
+  let uploadedLogoBase64 = null;
+
+  openModal({
+    title: 'Pengaturan Logo & Identitas Kampus (Admin)',
+    contentHtml: `
+      <div id="modalErr" style="display:none;color:var(--dg);font-weight:600;font-size:13px;margin-bottom:8px"></div>
+      
+      <div style="background:#f8fafc;border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:14px;display:flex;align-items:center;gap:16px">
+        <div style="width:72px;height:72px;background:#fff;border-radius:10px;border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;padding:4px;flex-shrink:0">
+          <img id="prevLogoImg" src="${esc(id.logo_url || '/images/logo-kampus.png')}" alt="Logo" style="max-width:100%;max-height:100%;object-fit:contain">
+        </div>
+        <div style="flex:1">
+          <label style="margin:0 0 4px;font-size:13px;font-weight:700">Logo Kampus</label>
+          <p style="margin:0 0 8px;font-size:12px;color:var(--tx-muted)">Format PNG/JPG transparan (rekomendasi rasio 1:1, maks 2MB).</p>
+          <input type="file" id="inpLogoFile" accept="image/png,image/jpeg,image/webp" style="font-size:12px" onchange="previewLogoFile(event)">
+        </div>
+      </div>
+
+      <div><label>Nama Institusi / Universitas</label><input id="ekInst" value="${esc(id.nama_institusi || 'INSTITUT PERTANIAN STIPER')}" placeholder="Contoh: INSTITUT PERTANIAN STIPER"></div>
+      <div><label>Nama Fakultas</label><input id="ekFak" value="${esc(id.nama_fakultas || 'FAKULTAS PERTANIAN')}" placeholder="Contoh: FAKULTAS PERTANIAN"></div>
+      <div><label>Alamat Kampus (untuk Kop Surat)</label><input id="ekAlamat" value="${esc(id.alamat || '')}" placeholder="Alamat lengkap kampus..."></div>
+      <div><label>Kontak Kampus / No. Telp / Email</label><input id="ekKontak" value="${esc(id.kontak || '')}" placeholder="Telp / Email kampus..."></div>
+    `,
+    okText: 'Simpan Identitas & Logo',
+    okClass: '',
+    onOk: async () => {
+      const data = {
+        nama_institusi: $('#ekInst').value.trim(),
+        nama_fakultas: $('#ekFak').value.trim(),
+        alamat: $('#ekAlamat').value.trim(),
+        kontak: $('#ekKontak').value.trim(),
+        logo_url: id.logo_url || '/images/logo-kampus.png',
+        logo_base64: uploadedLogoBase64
+      };
+
+      if (!data.nama_institusi || !data.nama_fakultas) {
+        const errEl = $('#modalErr');
+        if (errEl) { errEl.textContent = 'Nama institusi dan fakultas wajib diisi.'; errEl.style.display = 'block'; }
+        return false;
+      }
+
+      await run(call('simpanIdentitasKampus', tk(), data), 'Identitas dan logo kampus berhasil diperbarui.');
+      PUB = await call('publik');
+      applyIdentitas();
+      vBeranda();
+    }
+  });
+
+  window.previewLogoFile = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Ukuran file logo maksimal 2MB.');
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      uploadedLogoBase64 = ev.target.result;
+      const prev = $('#prevLogoImg');
+      if (prev) prev.src = uploadedLogoBase64;
+    };
+    reader.readAsDataURL(file);
+  };
 }
 
 /* ===== 2. Mahasiswa: Formulir Pengajuan Judul ===== */
@@ -917,16 +1223,36 @@ function surat(r) {
     statusBanner = `<div class="bn rej">TIDAK DISETUJUI / REVISI</div>`;
   }
 
+  const idK = (PUB && PUB.identitas_kampus) || {};
+  const logoK = idK.logo_url || '/images/logo-kampus.png';
+  const instK = idK.nama_institusi || 'INSTITUT PERTANIAN STIPER';
+  const fakK = idK.nama_fakultas || 'FAKULTAS PERTANIAN';
+  const almK = idK.alamat || 'Jl. Nangka II, Maguwoharjo, Depok, Sleman, D.I. Yogyakarta 55282';
+  const telpK = idK.kontak || 'Telp. (0274) 885803 · Email: pertanian@instiperjogja.ac.id';
+
   return `
     <p class="pb" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <button onclick="window.print()">🖨️ Cetak A4 / Simpan PDF</button>
       <button class="s" onclick="cetakBasah()">✍️ Cetak Lembar Tanda Tangan Basah</button>
     </p>
     <div id="surat" class="a4">
-      <div class="wm">FAKULTAS PERTANIAN</div>
+      <div class="wm">${esc(fakK)}</div>
       ${statusBanner}
+
+      <!-- Kop Surat Resmi Kampus -->
+      <div class="kop-surat">
+        <img src="${esc(logoK)}" alt="Logo" class="kop-logo">
+        <div class="kop-text">
+          <div class="kop-inst">${esc(instK)}</div>
+          <div class="kop-fak">${esc(fakK)}</div>
+          <div class="kop-detail">${esc(almK)}</div>
+          <div class="kop-detail">${esc(telpK)}</div>
+        </div>
+      </div>
+      <div class="kop-line"></div>
+
       <b>Hal : Perubahan Judul<br>( Perubahan Judul yang sudah dikonsultasikan dengan Dosen Pembimbing )</b>
-      <p style="margin-top:14px">Kepada<br>Yth. Ketua Jurusan ${esc(r.prodi)}<br>Fakultas Pertanian<br>Yogyakarta</p>
+      <p style="margin-top:14px">Kepada<br>Yth. Ketua Jurusan ${esc(r.prodi)}<br>${esc(fakK)}<br>Yogyakarta</p>
       <p>Bersama ini mahasiswa :</p>
       <div class="mhs">
         <table>${row('Nama', r.nama)}${row('Angkatan', r.angkatan)}${row('NIM', r.nim)}${row('Kelas', r.kelas)}${row('No. HP / WA', r.hp)}${row('Email', r.email)}</table>
@@ -1828,6 +2154,10 @@ async function vData() {
 /* ===== Verifikasi Publik via QR / Parameter ?v= ===== */
 async function vVerif() {
   $('#nav').style.display = 'none';
+  if (!PUB || !PUB.identitas_kampus) {
+    try { PUB = await call('publik'); } catch (e) {}
+  }
+  applyIdentitas();
   let r = null;
   try { r = await call('verifikasi', VERIFY); } catch (e) {}
   if (!r) {
