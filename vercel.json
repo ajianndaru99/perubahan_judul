@@ -11,8 +11,16 @@
   },
   "routes": [
     {
+      "src": "/images/(.*)",
+      "dest": "/images/$1"
+    },
+    {
       "src": "/build/(.*)",
       "dest": "/build/$1"
+    },
+    {
+      "src": "/(.*\.(?:png|jpg|jpeg|gif|svg|ico|webp|txt))",
+      "dest": "/$1"
     },
     {
       "src": "/favicon.ico",

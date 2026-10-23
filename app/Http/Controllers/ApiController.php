@@ -150,12 +150,20 @@ class ApiController extends Controller
         }
 
         if (!$identitas) {
+            $defaultLogo = '/images/logo-kampus.png';
+            $logoFile = public_path('images/logo-kampus.png');
+            if (!file_exists($logoFile)) $logoFile = public_path('logo-kampus.png');
+            if (!file_exists($logoFile)) $logoFile = base_path('Logo_instiper-removebg-preview.png');
+            if (file_exists($logoFile)) {
+                $defaultLogo = 'data:image/png;base64,' . base64_encode(file_get_contents($logoFile));
+            }
+
             $identitas = [
                 'nama_institusi' => 'INSTITUT PERTANIAN STIPER',
                 'nama_fakultas' => 'FAKULTAS PERTANIAN',
                 'alamat' => 'Jl. Nangka II, Maguwoharjo, Kec. Depok, Kabupaten Sleman, D.I. Yogyakarta 55282',
                 'kontak' => 'Telp. (0274) 885803 · Email: pertanian@instiperjogja.ac.id',
-                'logo_url' => '/images/logo-kampus.png'
+                'logo_url' => $defaultLogo
             ];
         }
 

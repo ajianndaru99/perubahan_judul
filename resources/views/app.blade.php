@@ -5,13 +5,22 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sistem Pengajuan Perubahan Judul Skripsi — Fakultas Pertanian</title>
-  <script>window.__V=@json($verify);</script>
+  @php
+    $logoFile = public_path('images/logo-kampus.png');
+    if (!file_exists($logoFile)) $logoFile = public_path('logo-kampus.png');
+    if (!file_exists($logoFile)) $logoFile = base_path('Logo_instiper-removebg-preview.png');
+    $logoBase64 = file_exists($logoFile) ? ('data:image/png;base64,' . base64_encode(file_get_contents($logoFile))) : '/images/logo-kampus.png';
+  @endphp
+  <script>
+    window.__V = @json($verify);
+    window.__DEFAULT_LOGO = @json($logoBase64);
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <link rel="icon" type="image/png" href="/images/logo-kampus.png">
+  <link rel="icon" type="image/png" href="{{ $logoBase64 }}">
 @verbatim
 <style>
 :root {
@@ -420,7 +429,7 @@ tr:hover td { background: #fbfcfe; }
 <header>
   <div class="brand">
     <div class="brand-logo-wrap">
-      <img src="/images/logo-kampus.png" alt="Logo INSTIPER" class="brand-logo" id="headerLogoImg">
+      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="Logo INSTIPER" class="brand-logo" id="headerLogoImg">
     </div>
     <div class="brand-text">
       <h1 id="headerNamaFakultas">Fakultas Pertanian</h1>
@@ -442,6 +451,10 @@ tr:hover td { background: #fbfcfe; }
 <div id="modalContainer"></div>
 
 <script>
+if (window.__DEFAULT_LOGO) {
+  const initLogo = document.getElementById('headerLogoImg');
+  if (initLogo) initLogo.src = window.__DEFAULT_LOGO;
+}
 const VERIFY = window.__V || '';
 let S = null, PUB = { prodi: [], dosen: [], pengumuman: null }, tab = 'beranda', BUSY = false;
 const $ = s => document.querySelector(s);
@@ -530,12 +543,22 @@ function showAlert(title, message) {
 
 function applyIdentitas() {
   const id = (PUB && PUB.identitas_kampus) || {};
-  const logo = id.logo_url || '/images/logo-kampus.png';
+  let logo = id.logo_url || window.__DEFAULT_LOGO || '/images/logo-kampus.png';
+  if ((!logo || logo === '/images/logo-kampus.png') && window.__DEFAULT_LOGO) {
+    logo = window.__DEFAULT_LOGO;
+  }
   const fak = id.nama_fakultas || 'Fakultas Pertanian';
   const inst = id.nama_institusi || 'INSTITUT PERTANIAN STIPER';
 
   const logoEl = $('#headerLogoImg');
-  if (logoEl) logoEl.src = logo;
+  if (logoEl) {
+    logoEl.src = logo;
+    logoEl.onerror = () => {
+      if (window.__DEFAULT_LOGO && logoEl.src !== window.__DEFAULT_LOGO) {
+        logoEl.src = window.__DEFAULT_LOGO;
+      }
+    };
+  }
   const fakEl = $('#headerNamaFakultas');
   if (fakEl) fakEl.textContent = fak;
   const sysEl = $('#headerNamaSistem');
@@ -1224,7 +1247,10 @@ function surat(r) {
   }
 
   const idK = (PUB && PUB.identitas_kampus) || {};
-  const logoK = idK.logo_url || '/images/logo-kampus.png';
+  let logoK = idK.logo_url || window.__DEFAULT_LOGO || '/images/logo-kampus.png';
+  if ((!logoK || logoK === '/images/logo-kampus.png') && window.__DEFAULT_LOGO) {
+    logoK = window.__DEFAULT_LOGO;
+  }
   const instK = idK.nama_institusi || 'INSTITUT PERTANIAN STIPER';
   const fakK = idK.nama_fakultas || 'FAKULTAS PERTANIAN';
   const almK = idK.alamat || 'Jl. Nangka II, Maguwoharjo, Depok, Sleman, D.I. Yogyakarta 55282';
