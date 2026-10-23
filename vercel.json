@@ -19,10 +19,6 @@
       "dest": "/build/$1"
     },
     {
-      "src": "/(.*\.(?:png|jpg|jpeg|gif|svg|ico|webp|txt))",
-      "dest": "/$1"
-    },
-    {
       "src": "/favicon.ico",
       "dest": "/favicon.ico"
     },
