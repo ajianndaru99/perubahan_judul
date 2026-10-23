@@ -556,10 +556,13 @@ async function go(k) {
   } else {
     tab = k;
   }
-  if (['prodi', 'ajukan', 'beranda'].includes(k) || k === 'out') {
-    try { PUB = await call('publik'); } catch (e) {}
-  }
   render();
+  if (k === 'out' || !PUB || !PUB.prodi || PUB.prodi.length === 0) {
+    try {
+      PUB = await call('publik');
+      render();
+    } catch (e) {}
+  }
 }
 
 /* ===== 1. Halaman Awal / Papan Pengumuman ===== */
